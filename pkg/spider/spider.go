@@ -40,6 +40,13 @@ func Crawl(d []string) error {
 	c := colly.NewCollector(
 		colly.AllowedDomains(d...),
 	)
+	c.OnHTML("form", func(e *colly.HTMLElement) {
+		// try to map fields to form struct and save
+	})
+	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
+		link := e.Attr("href")
+		c.Visit(e.Request.AbsoluteURL(link))
+	})
 	for _, site := range d {
 		c.Visit(site)
 	}
@@ -48,7 +55,7 @@ func Crawl(d []string) error {
 
 // Leak posts a contact to locations on the internet likely to be scraped by
 // others. Failure is expected to occur frequently, so errors are logged and
-// then passed over.
+// then passed over. This is the low-hanging fruit of pirhana.
 //
 // Posts to:
 // 1. Craigslist.org
