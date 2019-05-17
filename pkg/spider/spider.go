@@ -3,7 +3,11 @@
 // field.
 package spider
 
-import "github.com/gocolly/colly"
+import (
+	"net/url"
+
+	"github.com/gocolly/colly"
+)
 
 type contact struct {
 	First       string
@@ -18,13 +22,10 @@ type contact struct {
 }
 
 type form struct {
-	URL     string
-	Email   bool
-	Name    bool
-	Address bool
-	Phone   bool
-	Mobile  bool
-	Submit  string
+	URL    *url.URL
+	Action string
+	Method string
+	Fields []string
 }
 
 // Crawl traverses a pre-defined list of malicious websites and attempts to
@@ -41,7 +42,20 @@ func Crawl(d []string) error {
 		colly.AllowedDomains(d...),
 	)
 	c.OnHTML("form", func(e *colly.HTMLElement) {
-		// try to map fields to form struct and save
+		fields := e.ChildAttrs("input", "name")
+		// is there an email field at all?
+		for _, field := range fields {
+			if field == "email" {
+				f := form{
+					URL:    e.Request.URL,
+					Action: e.Attr("action"),
+					Method: e.Attr("method"),
+					Fields: fields,
+				}
+				// Save this to a file or sqlite.
+				// Will need locking
+			}
+		}
 	})
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 		link := e.Attr("href")
