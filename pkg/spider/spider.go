@@ -4,19 +4,27 @@
 package spider
 
 import (
+	"encoding/csv"
+	"fmt"
 	"net/url"
+	"strings"
+	"sync"
 
 	"github.com/gocolly/colly"
+	log "github.com/sirupsen/logrus"
 )
 
-type contact struct {
+// Contact is a collection of identifying information for an individual. Fields
+// are self-explanatory. All fields, including 'numeric' fields are represented
+// as strings for simplicity.
+type Contact struct {
 	First       string
 	Last        string
 	Street      string
 	City        string
 	State       string
 	Email       string
-	Zip         string // represent as string so we don't have to convert
+	Zip         string
 	HomePhone   string
 	MobilePhone string
 }
@@ -24,7 +32,6 @@ type contact struct {
 type form struct {
 	URL    *url.URL
 	Action string
-	Method string
 	Fields []string
 }
 
@@ -37,10 +44,22 @@ type form struct {
 //
 // 	spider.Crawl([]string{"google.com","yahoo.com"})
 //
-func Crawl(d []string) error {
+func Crawl(domains []string, w *csv.Writer) error {
+	mx := &sync.Mutex{}
+	var hosts []string
+	for _, d := range domains {
+		h, err := url.Parse(d)
+		if err != nil {
+			continue
+		}
+		hosts = append(hosts, h.Hostname())
+	}
 	c := colly.NewCollector(
-		colly.AllowedDomains(d...),
+		colly.AllowedDomains(hosts...),
+		// FIXME: No depth limit
+		colly.MaxDepth(1),
 	)
+
 	c.OnHTML("form", func(e *colly.HTMLElement) {
 		fields := e.ChildAttrs("input", "name")
 		// is there an email field at all?
@@ -49,19 +68,23 @@ func Crawl(d []string) error {
 				f := form{
 					URL:    e.Request.URL,
 					Action: e.Attr("action"),
-					Method: e.Attr("method"),
 					Fields: fields,
 				}
-				// Save this to a file or sqlite.
-				// Will need locking
+				mx.Lock()
+				defer mx.Unlock()
+				w.Write([]string{f.URL.String(), f.Action, strings.Join(f.Fields, "|")})
 			}
 		}
 	})
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 		link := e.Attr("href")
+		if string(link[0]) == "#" {
+			return
+		}
+		log.Info(fmt.Sprintf("Visiting:\t%s", e.Request.AbsoluteURL(link)))
 		c.Visit(e.Request.AbsoluteURL(link))
 	})
-	for _, site := range d {
+	for _, site := range domains {
 		c.Visit(site)
 	}
 	return nil
@@ -74,8 +97,7 @@ func Crawl(d []string) error {
 // Posts to:
 // 1. Craigslist.org
 // 2. Pastebin.org
-// 3. Ghostbin.org
-func Leak(c contact) error {
+func Leak(contacts []Contact) error {
 	return nil
 }
 
