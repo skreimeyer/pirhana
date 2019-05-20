@@ -6,6 +6,7 @@ package spider
 import (
 	"encoding/csv"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 	"sync"
@@ -29,14 +30,16 @@ type Contact struct {
 	MobilePhone string
 }
 
-type form struct {
+// Form is a container for HTML form inputs. Input tag names are saved in the
+// Fields slice.
+type Form struct {
 	URL    *url.URL
 	Action string
 	Fields []string
 }
 
 // Crawl traverses a pre-defined list of malicious websites and attempts to
-// identify URLs containing form input for email contact information such as
+// identify URLs containing Form input for email contact inFormation such as
 // mailing lists or registrations. This is expected to be a time-consuming
 // process, so results are saved and POST-related functionality is its own
 // function. Failure is expected to occur frequently, due to rate limiting or
@@ -65,7 +68,7 @@ func Crawl(domains []string, w *csv.Writer) error {
 		// is there an email field at all?
 		for _, field := range fields {
 			if field == "email" {
-				f := form{
+				f := Form{
 					URL:    e.Request.URL,
 					Action: e.Attr("action"),
 					Fields: fields,
@@ -101,9 +104,75 @@ func Leak(contacts []Contact) error {
 	return nil
 }
 
-// SignUp submits POST data to contact registration forms. Cookies or other
+// SignUp submits POST data to contact registration Forms. Cookies or other
 // contextual variables are not attempted. Secondary input validation, like
 // captchas, are not attempted.
-func SignUp(f form) error {
+func SignUp(f Form, c Contact) error {
+	// check f.Action for full domain name. If not, prepend domain from URL
+	var act string
+	if strings.HasPrefix(f.Action, "/") {
+		act = f.URL.Hostname() + f.Action
+	} else {
+		act = f.Action
+	}
+	data := url.Values{}
+	for _, fd := range f.Fields {
+		data.Add(fd, matcher(fd, c))
+	}
+	http.PostForm(act, data) // TODO optional error checking for verbose
 	return nil
+}
+
+// matcher is a helper function for SignUp. It matches contact fields based on
+// probable input field names from our forms.
+func matcher(field string, c Contact) string {
+	f := strings.ToLower(field)
+
+	switch true {
+	case strings.Contains(f, "first"):
+		return c.First
+	case strings.Contains(f, "last"):
+		return c.Last
+	case strings.Contains(f, "name"):
+		return fmt.Sprintf("%s %s", c.First, c.Last)
+	case strings.Contains(f, "add"):
+		return c.Street
+	case strings.Contains(f, "city"):
+		return c.City
+	case strings.Contains(f, "state"):
+		return c.State
+	case strings.Contains(f, "zip"):
+		return c.Zip
+	case strings.Contains(f, "email"):
+		return c.Email
+	case strings.Contains(f, "home"):
+		return c.HomePhone
+	case strings.Contains(f, "mobile"):
+		return c.MobilePhone
+	case strings.Contains(f, "cell"):
+		return c.MobilePhone
+	case strings.Contains(f, "phone"):
+		return c.MobilePhone
+	default:
+		return ""
+	}
+}
+
+// Unpack assigns elements in a string slice to a new Contact
+func (*Contact) Unpack(arg []string) Contact {
+	if len(arg) == 9 {
+		return Contact{
+			First:       arg[0],
+			Last:        arg[1],
+			Street:      arg[2],
+			City:        arg[3],
+			State:       arg[4],
+			Email:       arg[5],
+			Zip:         arg[6],
+			HomePhone:   arg[7],
+			MobilePhone: arg[8],
+		}
+	}
+	return Contact{}
+
 }

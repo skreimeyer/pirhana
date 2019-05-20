@@ -8,7 +8,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/diopside/pirhana/pkg/spider"
@@ -101,6 +103,61 @@ func startCrawler() {
 // signUpAll reads all contacts and POSTS that contact data to every form in
 // targets.csv
 func signUpAll() {
+	t, err := os.Open("targets.csv")
+	if err != nil {
+		log.Fatal("Failed to open targets.csv")
+	}
+	c, err := os.Open("contacts.csv")
+	if err != nil {
+		log.Fatal("Failed to open contacts.csv", err)
+	}
+	tReader := csv.NewReader(t)
+	cReader := csv.NewReader(c)
+	// skip first line
+	_, err = tReader.Read()
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = cReader.Read()
+	if err != nil {
+		log.Fatal(err)
+	}
+	for {
+		target, err := tReader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Error(err)
+			continue // keep going
+		}
+		u, err := url.Parse(target[0])
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		form := spider.Form{
+			u,
+			target[1],
+			strings.Split(target[2], "|"),
+		}
+		for {
+			row, err := cReader.Read()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			contact := spider.Contact.Unpack(row)
+			err = spider.SignUp(form, contact)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+		}
+	}
 
 }
 
