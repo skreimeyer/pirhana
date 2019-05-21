@@ -137,9 +137,9 @@ func signUpAll() {
 			continue
 		}
 		form := spider.Form{
-			u,
-			target[1],
-			strings.Split(target[2], "|"),
+			URL:    u,
+			Action: target[1],
+			Fields: strings.Split(target[2], "|"),
 		}
 		for {
 			row, err := cReader.Read()
@@ -150,7 +150,8 @@ func signUpAll() {
 				log.Error(err)
 				continue
 			}
-			contact := spider.Contact.Unpack(row)
+			var contact spider.Contact
+			contact.Unpack(row)
 			err = spider.SignUp(form, contact)
 			if err != nil {
 				log.Error(err)
