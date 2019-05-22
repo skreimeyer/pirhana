@@ -110,8 +110,13 @@ func Leak(contacts []Contact) error {
 func SignUp(f Form, c Contact) error {
 	// check f.Action for full domain name. If not, prepend domain from URL
 	var act string
-	if strings.HasPrefix(f.Action, "/") {
-		act = f.URL.Hostname() + f.Action
+	if !strings.HasPrefix(f.Action, "http") {
+		act = "http://" + f.URL.Hostname()
+		if f.URL.Port() != "" {
+			act += ":" + f.URL.Port() + "/" + f.Action
+		} else {
+			act += "/" + f.Action
+		}
 	} else {
 		act = f.Action
 	}
@@ -119,7 +124,11 @@ func SignUp(f Form, c Contact) error {
 	for _, fd := range f.Fields {
 		data.Add(fd, matcher(fd, c))
 	}
-	http.PostForm(act, data) // TODO optional error checking for verbose
+	_, err := http.PostForm(act, data) // TODO optional error checking for verbose
+	if err != nil {
+		log.Error(err)
+		return err
+	}
 	return nil
 }
 
@@ -159,17 +168,19 @@ func matcher(field string, c Contact) string {
 }
 
 // Unpack assigns elements in a string slice to a new Contact
-func (c *Contact) Unpack(arg []string) {
+func Unpack(arg []string) Contact {
 	if len(arg) == 9 {
-		c.First = arg[0]
-		c.Last = arg[1]
-		c.Street = arg[2]
-		c.City = arg[3]
-		c.State = arg[4]
-		c.Email = arg[5]
-		c.Zip = arg[6]
-		c.HomePhone = arg[7]
-		c.MobilePhone = arg[8]
+		return Contact{
+			First:       arg[0],
+			Last:        arg[1],
+			Street:      arg[2],
+			City:        arg[3],
+			State:       arg[4],
+			Email:       arg[5],
+			Zip:         arg[6],
+			HomePhone:   arg[7],
+			MobilePhone: arg[8],
+		}
 	}
-
+	return Contact{}
 }

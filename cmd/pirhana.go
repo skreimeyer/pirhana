@@ -93,8 +93,9 @@ func startCrawler() {
 
 	// sitelist := strings.Split(ransomware)
 	// sitelist = append(sitelist,strings.Split(suspicious))
-	sitelist := []string{
-		"https://www.madfientist.com/mr-money-mustache-interview/"}
+	// sitelist := []string{
+	// 	"https://www.madfientist.com/mr-money-mustache-interview/"}
+	sitelist := []string{"http://127.0.0.1:8000", "http://127.0.0.1:8080"}
 	log.Info("START CRAWLER")
 	spider.Crawl(sitelist, w)
 	fmt.Println("Crawling complete")
@@ -102,6 +103,7 @@ func startCrawler() {
 
 // signUpAll reads all contacts and POSTS that contact data to every form in
 // targets.csv
+// TODO this is a lot of logic for main . . .
 func signUpAll() {
 	t, err := os.Open("targets.csv")
 	if err != nil {
@@ -122,6 +124,21 @@ func signUpAll() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	var contacts []spider.Contact
+	// load contacts
+	for {
+		row, err := cReader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		c := spider.Unpack(row)
+		contacts = append(contacts, c)
+	}
+	// loop over targets
 	for {
 		target, err := tReader.Read()
 		if err == io.EOF {
@@ -129,37 +146,25 @@ func signUpAll() {
 		}
 		if err != nil {
 			log.Error(err)
-			continue // keep going
+			break // reader problem, so break loop
 		}
 		u, err := url.Parse(target[0])
 		if err != nil {
 			log.Error(err)
 			continue
 		}
-		form := spider.Form{
+		f := spider.Form{
 			URL:    u,
 			Action: target[1],
 			Fields: strings.Split(target[2], "|"),
 		}
-		for {
-			row, err := cReader.Read()
-			if err == io.EOF {
-				break
-			}
+		for _, c := range contacts {
+			err = spider.SignUp(f, c)
 			if err != nil {
 				log.Error(err)
-				continue
-			}
-			var contact spider.Contact
-			contact.Unpack(row)
-			err = spider.SignUp(form, contact)
-			if err != nil {
-				log.Error(err)
-				continue
 			}
 		}
 	}
-
 }
 
 // leakAll reads all contacts and posts information to CL and pastebin
@@ -208,10 +213,10 @@ func enter() {
 		datum := s.Text()
 		data = append(data, datum)
 	}
-	werr := w.Write(data)
-	if werr != nil {
-		fmt.Println(werr)
-		log.Fatal(werr)
+	err = w.Write(data)
+	if err != nil {
+		fmt.Println(err)
+		log.Fatal(err)
 	}
 
 }
