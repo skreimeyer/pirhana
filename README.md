@@ -5,13 +5,9 @@ version 0.1
 Made with love.
 
 ---
-Recommended usage:
 
-pirhana -help
-> for help
-pirhana -crawl
-> populate a table of target forms. This will take a long time.
-pirhana -entry
-> add contact information to a table
-pirhana -signup
-> post contact information to forms.
+The purpose of pirhana is attact phishing attempts and robocalls to a contact list of one or more identities. The intended workflow is to use the crawl option to generate a list of urls to forms that accept email addresses. Kill the process with ctl+C when you've had enough waiting. The "signup" option will make a best-effort attempt to fill out forms with contact information in a contacts.csv file. Use the "entry" option to create that list.
+
+Sit back and wait for spam and links to malware. It's like dropping blood in the water around pirhanas, get it?
+
+Needless to say, you should not use your primary email account and personal information for this.
