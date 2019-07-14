@@ -48,24 +48,26 @@ type Form struct {
 // 	spider.Crawl([]string{"google.com","yahoo.com"})
 //
 func Crawl(domains []string, w *csv.Writer) error {
+	log.Info("Executing crawl")
 	mx := &sync.Mutex{}
-	var hosts []string
-	for _, d := range domains {
-		h, err := url.Parse(d)
-		if err != nil {
-			continue
-		}
-		hosts = append(hosts, h.Hostname())
-	}
+
 	c := colly.NewCollector(
-		colly.AllowedDomains(hosts...),
-		// FIXME: No depth limit
+		colly.AllowedDomains(domains...),
+		colly.Async(true),
 		colly.MaxDepth(1),
 	)
 
+	c.OnRequest(func(r *colly.Request) {
+		log.Info("Request:", r.URL.String())
+	})
+
+	c.OnResponse(func(r *colly.Response) {
+		log.Info(fmt.Sprintf("Response URL:%s Code:%d", r.Request.URL.String(), r.StatusCode))
+	})
+
 	c.OnHTML("form", func(e *colly.HTMLElement) {
+		// log.Info("form found")
 		fields := e.ChildAttrs("input", "name")
-		// is there an email field at all?
 		for _, field := range fields {
 			if field == "email" {
 				f := Form{
@@ -81,15 +83,17 @@ func Crawl(domains []string, w *csv.Writer) error {
 	})
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 		link := e.Attr("href")
-		if string(link[0]) == "#" {
+		if len(link) > 0 && string(link[0]) == "#" {
 			return
 		}
-		log.Info(fmt.Sprintf("Visiting:\t%s", e.Request.AbsoluteURL(link)))
+		log.Info(fmt.Sprintf("Following: %s", e.Request.AbsoluteURL(link)))
 		c.Visit(e.Request.AbsoluteURL(link))
 	})
 	for _, site := range domains {
-		c.Visit(site)
+		c.Visit("http://" + site)
+		// c.Wait()
 	}
+	c.Wait()
 	return nil
 }
 

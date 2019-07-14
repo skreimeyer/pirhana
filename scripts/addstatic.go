@@ -9,7 +9,7 @@ import (
 
 func main() {
 	fs, _ := ioutil.ReadDir("../static")
-	out, _ := os.Create("../cmd/static.go")
+	out, _ := os.Create("../pirhana/static.go")
 	out.Write([]byte("package main \n\nconst (\n"))
 	for _, f := range fs {
 		out.Write([]byte(f.Name() + " = `"))

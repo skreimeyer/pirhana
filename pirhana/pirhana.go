@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/diopside/pirhana/pkg/spider"
+	"github.com/skreimeyer/pirhana/pkg/spider"
 )
 
 func main() {
@@ -108,7 +108,7 @@ func startCrawler() {
 	sitelist = append(sitelist, strings.Split(suspicious, "\n")...)
 	log.Info("START CRAWLER")
 	spider.Crawl(sitelist, w)
-	fmt.Println("Crawling complete")
+	fmt.Println("END CRAWL")
 }
 
 // enter handles data entry. Not very necessary, but possibly convenient.
