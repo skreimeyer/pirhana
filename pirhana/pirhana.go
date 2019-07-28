@@ -106,6 +106,12 @@ func startCrawler() {
 	})
 	sitelist := strings.Split(ransomware, "\n")
 	sitelist = append(sitelist, strings.Split(suspicious, "\n")...)
+	// //TEST ONLY
+	// sitelist := []string{
+	// 	"localhost:8080",
+	// 	"localhost:8000",
+	// }
+	// //TEST ONLY
 	log.Info("START CRAWLER")
 	spider.Crawl(sitelist, w)
 	fmt.Println("END CRAWL")

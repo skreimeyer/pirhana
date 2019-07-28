@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 
 	"github.com/gocolly/colly"
 	log "github.com/sirupsen/logrus"
@@ -49,10 +48,9 @@ type Form struct {
 //
 func Crawl(domains []string, w *csv.Writer) error {
 	log.Info("Executing crawl")
-	mx := &sync.Mutex{}
 
 	c := colly.NewCollector(
-		colly.AllowedDomains(domains...),
+		// colly.AllowedDomains(domains...), // this may be a problem for frequent redirects
 		colly.Async(true),
 		colly.MaxDepth(1),
 	)
@@ -61,9 +59,9 @@ func Crawl(domains []string, w *csv.Writer) error {
 		log.Info("Request:", r.URL.String())
 	})
 
-	c.OnResponse(func(r *colly.Response) {
-		log.Info(fmt.Sprintf("Response URL:%s Code:%d", r.Request.URL.String(), r.StatusCode))
-	})
+	// c.OnResponse(func(r *colly.Response) {
+	// 	log.Info(fmt.Sprintf("Response URL:%s Code:%d", r.Request.URL.String(), r.StatusCode))
+	// })
 
 	c.OnHTML("form", func(e *colly.HTMLElement) {
 		// log.Info("form found")
@@ -75,8 +73,8 @@ func Crawl(domains []string, w *csv.Writer) error {
 					Action: e.Attr("action"),
 					Fields: fields,
 				}
-				mx.Lock()
-				defer mx.Unlock()
+				// Dropped mutex because locking resulted in a panic under high load
+				// leaving it open to a data race instead. God help us.
 				w.Write([]string{f.URL.String(), f.Action, strings.Join(f.Fields, "|")})
 			}
 		}
@@ -91,8 +89,8 @@ func Crawl(domains []string, w *csv.Writer) error {
 	})
 	for _, site := range domains {
 		c.Visit("http://" + site)
-		// c.Wait()
 	}
+
 	c.Wait()
 	return nil
 }
