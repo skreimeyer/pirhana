@@ -47,7 +47,7 @@ type Form struct {
 // 	spider.Crawl([]string{"google.com","yahoo.com"})
 //
 func Crawl(domains []string, w *csv.Writer) error {
-	log.Info("Executing crawl")
+	log.Info("Begin crawl")
 
 	c := colly.NewCollector(
 		// colly.AllowedDomains(domains...), // this may be a problem for frequent redirects
@@ -84,7 +84,7 @@ func Crawl(domains []string, w *csv.Writer) error {
 		if len(link) > 0 && string(link[0]) == "#" {
 			return
 		}
-		log.Info(fmt.Sprintf("Following: %s", e.Request.AbsoluteURL(link)))
+		// log.Info(fmt.Sprintf("Following: %s", e.Request.AbsoluteURL(link)))
 		c.Visit(e.Request.AbsoluteURL(link))
 	})
 	for _, site := range domains {
